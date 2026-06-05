@@ -1,0 +1,66 @@
+steps:
+
+# 1️⃣ Authenticate to GKE cluster
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  id: 'auth-cluster'
+  entrypoint: gcloud
+  args:
+    - container
+    - clusters
+    - get-credentials
+    - console-cluster
+    - --region=asia-southeast1
+    - --project=$PROJECT_ID
+
+# 2️⃣ Create/update Kubernetes secret in the console-shop namespace
+- name: 'gcr.io/cloud-builders/kubectl'
+  id: 'update-secret'
+  entrypoint: bash
+  args:
+    - -c
+    - |
+      kubectl create secret generic payment-gateway-secret \
+        --namespace=console-shop \
+        --from-literal=DATABASE_URL="$_DATABASE_URL" \
+        --from-literal=OMISE_SECRET_KEY="$_OMISE_SECRET_KEY" \
+        --from-literal=OMISE_PUBLIC_KEY="$_OMISE_PUBLIC_KEY" \
+        --from-literal=OMISE_WEBHOOK_SECRET="$_OMISE_WEBHOOK_SECRET" \
+        --from-literal=OMISE_RETURN_URL="$_OMISE_RETURN_URL" \
+        --from-literal=INTERNAL_SECRET="$_INTERNAL_SECRET" \
+        --from-literal=PORT="8080" \
+        --dry-run=client -o yaml | kubectl apply -f -
+  env:
+    - CLOUDSDK_COMPUTE_REGION=asia-southeast1
+    - CLOUDSDK_CONTAINER_CLUSTER=console-cluster
+
+# 3️⃣ Build Docker image
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    - build
+    - -t
+    - asia-southeast1-docker.pkg.dev/$PROJECT_ID/console-shop/payment-gateway:$SHORT_SHA
+    - .
+
+# 4️⃣ Push Docker image
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    - push
+    - asia-southeast1-docker.pkg.dev/$PROJECT_ID/console-shop/payment-gateway:$SHORT_SHA
+
+# 5️⃣ Deploy to GKE (console-shop namespace)
+- name: 'gcr.io/cloud-builders/kubectl'
+  args:
+    - set
+    - image
+    - deployment/payment-gateway
+    - payment-gateway=asia-southeast1-docker.pkg.dev/$PROJECT_ID/console-shop/payment-gateway:$SHORT_SHA
+    - --namespace=console-shop
+  env:
+    - CLOUDSDK_COMPUTE_REGION=asia-southeast1
+    - CLOUDSDK_CONTAINER_CLUSTER=console-cluster
+
+images:
+  - asia-southeast1-docker.pkg.dev/$PROJECT_ID/console-shop/payment-gateway:$SHORT_SHA
+
+options:
+  logging: CLOUD_LOGGING_ONLY
