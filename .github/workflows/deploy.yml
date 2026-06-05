@@ -1,0 +1,82 @@
+name: Deploy Payment Gateway to GKE
+
+on:
+  push:
+    branches: [dev]
+
+env:
+  REGION: asia-southeast1
+  REPO:   console-shop
+  IMAGE:  payment-gateway
+  DEPLOY: payment-gateway
+  NS:     console-shop
+
+jobs:
+  build-and-deploy:
+    name: Build, Push & Rollout
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout config repo
+        uses: actions/checkout@v4
+        with:
+          repository: LBOEVSET/payment_gateway_config
+          token: ${{ secrets.CONFIG_REPO_TOKEN }}
+          path: _config
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push Docker image
+        run: |
+          IMAGE_PATH="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/${{ env.IMAGE }}"
+          docker build \
+            --platform linux/amd64 \
+            -t "${IMAGE_PATH}:latest" \
+            -t "${IMAGE_PATH}:${{ github.sha }}" \
+            .
+          docker push "${IMAGE_PATH}:latest"
+          docker push "${IMAGE_PATH}:${{ github.sha }}"
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ secrets.GKE_CLUSTER }}
+          location:     ${{ secrets.GKE_ZONE }}
+          project_id:   ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Update k8s secret from config repo
+        run: |
+          set -a && source _config/environments/dev.env && set +a
+          kubectl create secret generic payment-gateway-secret \
+            --namespace=${{ env.NS }} \
+            --from-literal=DATABASE_URL="$DATABASE_URL" \
+            --from-literal=OMISE_SECRET_KEY="$OMISE_SECRET_KEY" \
+            --from-literal=OMISE_PUBLIC_KEY="$OMISE_PUBLIC_KEY" \
+            --from-literal=OMISE_WEBHOOK_SECRET="$OMISE_WEBHOOK_SECRET" \
+            --from-literal=OMISE_RETURN_URL="$OMISE_RETURN_URL" \
+            --from-literal=INTERNAL_SECRET="$INTERNAL_SECRET" \
+            --from-literal=PORT="$PORT" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy
+        run: |
+          kubectl set image deployment/${{ env.DEPLOY }} \
+            ${{ env.DEPLOY }}="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/${{ env.IMAGE }}:${{ github.sha }}" \
+            -n ${{ env.NS }}
+          kubectl rollout status deployment/${{ env.DEPLOY }} -n ${{ env.NS }} --timeout=180s
