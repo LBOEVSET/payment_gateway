@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-gateway-service
+  namespace: console-shop
+  labels:
+    app: payment-gateway
+spec:
+  # ClusterIP — internal only, accessed exclusively by the api-gateway
+  type: ClusterIP
+  selector:
+    app: payment-gateway
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080

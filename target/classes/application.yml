@@ -1,0 +1,65 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: payment-gateway
+
+  datasource:
+    url: ${DATABASE_URL}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+
+  jpa:
+    hibernate:
+      ddl-auto: none          # Schema is owned by Prisma — never let JPA modify it
+      naming:
+        # Preserve exact names from @Table/@Column annotations. Prisma uses
+        # PascalCase table names ("Payment", "Order") and camelCase columns
+        # ("chargeId", "createdAt"). Spring Boot's default naming strategy
+        # converts them to snake_case ("payment", "charge_id") which breaks
+        # all queries against the Prisma-managed schema.
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        # Quote all identifiers so PostgreSQL preserves case on PascalCase
+        # table names (e.g. "Payment" not payment).
+        globally_quoted_identifiers: true
+
+  # Preserve raw body for webhook signature verification
+  mvc:
+    pathmatch:
+      use-suffix-pattern: false
+
+omise:
+  secret-key: ${OMISE_SECRET_KEY}
+  public-key: ${OMISE_PUBLIC_KEY}
+  webhook-secret: ${OMISE_WEBHOOK_SECRET}
+  api-url: https://api.omise.co
+  return-url: ${OMISE_RETURN_URL:http://localhost:3022/payment-success}
+
+app:
+  internal-secret: ${INTERNAL_SECRET:internal-secret-change-me}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.consoleshop.payment: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN
