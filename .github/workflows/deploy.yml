@@ -72,6 +72,7 @@ jobs:
             --from-literal=OMISE_RETURN_URL="$OMISE_RETURN_URL" \
             --from-literal=INTERNAL_SECRET="$INTERNAL_SECRET" \
             --from-literal=PORT="$PORT" \
+            --from-literal=ZONE="$ZONE" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy
