@@ -32,4 +32,8 @@ public class PaymentException extends RuntimeException {
     public static PaymentException unauthorized(String message) {
         return new PaymentException(message, HttpStatus.UNAUTHORIZED);
     }
+
+    public static PaymentException conflict(String message) {
+        return new PaymentException(message, HttpStatus.CONFLICT);
+    }
 }

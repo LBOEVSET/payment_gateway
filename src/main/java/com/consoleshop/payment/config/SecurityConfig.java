@@ -26,8 +26,13 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Webhook and health endpoints are open
-                .requestMatchers("/api/v1/payments/webhook", "/actuator/**", "/actuator/health").permitAll()
+                // Webhook and health endpoints are open (both console shop and hospital)
+                .requestMatchers(
+                    "/api/v1/payments/webhook",
+                    "/api/v1/hospital-payments/webhook",
+                    "/actuator/**",
+                    "/actuator/health"
+                ).permitAll()
                 // Everything else requires authentication (enforced via TrustedHeaderAuthFilter)
                 .anyRequest().authenticated()
             )

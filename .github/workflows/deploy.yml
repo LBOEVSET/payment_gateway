@@ -75,6 +75,10 @@ jobs:
             --from-literal=INTERNAL_SECRET="$INTERNAL_SECRET" \
             --from-literal=PORT="$PORT" \
             --from-literal=ZONE="$ZONE" \
+            --from-literal=MONGODB_URI="$HOSPITAL_MONGODB_URI" \
+            --from-literal=MONGODB_DB="$HOSPITAL_MONGODB_DB" \
+            --from-literal=HOSPITAL_BACKEND_URL="$HOSPITAL_BACKEND_URL" \
+            --from-literal=HOSPITAL_BACKEND_SECRET="$INTERNAL_SECRET" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy

@@ -34,6 +34,12 @@ spring:
         # table names (e.g. "Payment" not payment).
         globally_quoted_identifiers: true
 
+  # ── MongoDB (hospital bookings) ─────────────────────────────────────────
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://lboevset:20011966@127.0.0.1:27017/?authSource=admin}
+      database: ${MONGODB_DB:hospital}
+
   # Preserve raw body for webhook signature verification
   mvc:
     pathmatch:
@@ -48,6 +54,13 @@ omise:
 
 app:
   internal-secret: ${INTERNAL_SECRET:internal-secret-change-me}
+  # URL of the Cinema BE — used to forward cinemaMax charge webhooks.
+  # In k8s: http://cinema-api.assignment.svc.cluster.local:8080
+  # In local dev: http://localhost:8080
+  cinema-be-url: ${CINEMA_BE_URL:http://localhost:8080}
+  # Hospital NestJS backend — notified after webhook payment status changes
+  hospital-backend-url: ${HOSPITAL_BACKEND_URL:http://localhost:8000}
+  hospital-backend-secret: ${INTERNAL_SECRET:internal-secret-change-me}
 
 management:
   endpoints:

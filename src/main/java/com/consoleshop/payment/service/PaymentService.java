@@ -33,6 +33,7 @@ public class PaymentService {
     private final EventRepository eventRepository;
     private final OmiseService omiseService;
     private final OmiseConfig omiseConfig;
+    private final CinemaForwarderService cinemaForwarderService;
 
     // ─── Credit Card Payment ──────────────────────────────────────────────────
 
@@ -152,6 +153,15 @@ public class PaymentService {
         Map<String, Object> charge = (Map<String, Object>) body.get("data");
 
         if (charge == null || charge.get("id") == null) {
+            return Map.of("received", true);
+        }
+
+        // Route by metadata.provider — cinemaMax charges are handled by Cinema BE
+        @SuppressWarnings("unchecked")
+        Map<String, Object> metadata = (Map<String, Object>) charge.get("metadata");
+        if (metadata != null && "cinemaMax".equals(metadata.get("provider"))) {
+            log.info("Routing charge {} to Cinema BE (provider=cinemaMax)", charge.get("id"));
+            cinemaForwarderService.forward(charge);
             return Map.of("received", true);
         }
 

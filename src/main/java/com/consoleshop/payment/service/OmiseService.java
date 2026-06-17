@@ -65,11 +65,26 @@ public class OmiseService {
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> createCardCharge(double amountTHB, String token, String orderId) {
+        return createCardCharge(amountTHB, token, orderId, null, null);
+    }
+
+    /**
+     * Overload used by hospital payment service — adds metadata[provider] and metadata[bookingNumber]
+     * so the webhook can route correctly between console shop and hospital.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> createCardCharge(double amountTHB, String token, String reference,
+                                                 String provider, String referenceKey) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("amount", String.valueOf(Math.round(amountTHB * 100)));
         form.add("currency", "thb");
         form.add("card", token);
-        form.add("metadata[orderId]", orderId);
+        if (provider != null) {
+            form.add("metadata[provider]", provider);
+            form.add("metadata[" + (referenceKey != null ? referenceKey : "bookingNumber") + "]", reference);
+        } else {
+            form.add("metadata[orderId]", reference);
+        }
         // return_uri is required for 3DS-enrolled cards. Omise ignores it for
         // non-3DS cards, so it is safe to always include it.
         form.add("return_uri", omiseConfig.getReturnUrl());
@@ -88,10 +103,25 @@ public class OmiseService {
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> createPromptPayCharge(double amountTHB, String orderId) {
+        return createPromptPayCharge(amountTHB, orderId, null, null);
+    }
+
+    /**
+     * Overload used by the hospital payment service.
+     * Sets metadata[provider] and metadata[bookingNumber] so the webhook handler
+     * can route the charge to the correct service.
+     */
+    public Map<String, Object> createPromptPayCharge(double amountTHB, String bookingNumber,
+                                                      String provider, String referenceKey) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("amount", String.valueOf(Math.round(amountTHB * 100)));
         form.add("currency", "thb");
-        form.add("metadata[orderId]", orderId);
+        if (provider != null) {
+            form.add("metadata[provider]", provider);
+            form.add("metadata[" + (referenceKey != null ? referenceKey : "bookingNumber") + "]", bookingNumber);
+        } else {
+            form.add("metadata[orderId]", bookingNumber);
+        }
         form.add("source[type]", "promptpay");
         form.add("return_uri", omiseConfig.getReturnUrl());
 
